@@ -9,5 +9,6 @@ requests
 pandas
 docx
 python-dotenv
-extract-msg
+extract-msg 
+gunicorn==20.1.0
 
