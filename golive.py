@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from flask import Flask, request, jsonify
 import base64
 import extract_msg
@@ -446,5 +445,4 @@ def exceldocumentation():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
->>>>>>> f5cfff49a90ccf74c0b9e2cf4822f895b2841e01
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
