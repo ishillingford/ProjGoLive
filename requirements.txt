@@ -10,5 +10,5 @@ pandas
 docx
 python-dotenv
 extract-msg 
-gunicorn==20.1.0
+gunicorn>=22.0.0
 
