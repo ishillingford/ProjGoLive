@@ -66,4 +66,4 @@ jobs:
         with:
           app-name: 'LPG-GoLive'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_43259E33E1B446A69C23B38D58109342 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_85281E66517D4A48B2F88D5A443461CF }}
