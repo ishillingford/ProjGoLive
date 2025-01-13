@@ -1,14 +1,9 @@
-# DO NOT include azure-functions-worker in this file
-# The Python Worker is managed by Azure Functions platform
-# Manually managing azure-functions-worker may cause unexpected issues
-
-azure-functions 
-openai== 0.28.1
-msal
-requests
-pandas
-docx
-python-dotenv
-extract-msg 
-gunicorn>=22.0.0
-
+azure_storage==0.37.0
+docx==0.2.4
+extract_msg==0.48.5
+Flask==3.1.0
+openai==1.59.6
+pandas==2.2.3
+python-dotenv==1.0.1
+python_docx==1.1.2
+Requests==2.32.3
