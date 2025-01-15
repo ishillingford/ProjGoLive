@@ -191,7 +191,8 @@ def process_email():
 
         return jsonify(response_data)
     
-    except Exception as e:
+    except Exception as e: 
+        logger.error(f"Error processing /process-email: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/word", methods=["POST"])
