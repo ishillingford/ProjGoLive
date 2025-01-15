@@ -9,7 +9,12 @@ from datetime import datetime
 from openai import AzureOpenAI
 from azure.core.credentials import AzureKeyCredential 
 from io import BytesIO 
-from dotenv import load_dotenv
+from dotenv import load_dotenv 
+import logging 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)  # Logs to console for easier debugging
+logger = logging.getLogger(__name__)
+
 
 # Load .env only for local development (when not on Azure)
 if os.getenv("FLASK_ENV") != "production":
@@ -161,16 +166,18 @@ def create_summary_excel(summarized_data):
     
 
 @app.route("/process-email", methods=["POST"])
-def process_email():
+def process_email(): 
     try:
+        logger.debug("Processing /process-email route")
         data = request.json
+        logger.debug(f"Received data: {data}")
+        
         base64_content = data.get("$content", None)
-
         if not base64_content:
+            logger.error("No content provided in request.")
             return jsonify({"error": "No content provided"}), 400
 
         decoded_content = base64.b64decode(base64_content)
-
         file_name = "temp_email.msg"
         with open(file_name, "wb") as file:
             file.write(decoded_content)
