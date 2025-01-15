@@ -11,13 +11,21 @@ from azure.core.credentials import AzureKeyCredential
 from io import BytesIO 
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv() 
+# Load .env only for local development (when not on Azure)
+if os.getenv("FLASK_ENV") != "production":
+    load_dotenv()  # This loads the .env file for local development
+
+# Retrieve Azure environment variables from Azure App Service Application Settings
+api_key = os.getenv("AZURE_OPENAI_API_key")
+azure_endpoint = os.getenv("AZURE_OPENAI")
+
+if not api_key or not azure_endpoint:
+    raise EnvironmentError("AZURE_OPENAI_API_key or AZURE_OPENAI not set!")
 
 # Set up environment variables  
 client = AzureOpenAI(
-    api_key= os.getenv("AZURE_OPENAI_API_key"),
-    azure_endpoint=os.getenv("AZURE_OPENAI"),
+    api_key= api_key,
+    azure_endpoint= azure_endpoint,
     api_version="2024-08-01-preview",
 )
 
