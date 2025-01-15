@@ -8,8 +8,3 @@ python_docx==1.1.2
 Requests==2.32.3
 
 gunicorn  
-json
-base64
-re
-azure-core
-xlsxwriter
