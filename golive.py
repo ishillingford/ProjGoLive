@@ -120,18 +120,23 @@ def process_email():
         if not base64_content:
             return jsonify({"error": "No content provided"}), 400
 
-        decoded_content = base64.b64decode(base64_content)
-        file_name = "temp_email.msg"
-        with open(file_name, "wb") as file:
-            file.write(decoded_content)
+        decoded_content = base64.b64decode(base64_content) 
+        email_stream = BytesIO(decoded_content)
 
-        info = extract_info_from_msg(file_name)
+        info = extract_info_from_msg(email_stream)
         summarized_info = summarize_info(info)
-        return jsonify({"extracted_info": info, "summarized_info": summarized_info})
-    except Exception as e:
-        logger.error(f"Error processing /process-email: {e}")
-        return jsonify({"error": str(e)}), 500
+         response_data = {
+            "extracted_info": info,
+            "summarized_info": summarized_info
+        }
 
+        logging.info("Successfully processed email.")
+        return jsonify(response_data)
+
+    except Exception as e:
+        logging.error(f"Error processing email: {e}")
+        return jsonify({"error": str(e)}), 500 
+        
 @app.route("/word", methods=["POST"])
 def worddocumentation():
     try:
