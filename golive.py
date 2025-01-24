@@ -1,15 +1,19 @@
 # Import necessary libraries
-import os
-import re
-import logging
+from flask import Flask, request, jsonify 
+import json 
+import requests
 import base64
-from io import BytesIO
+import extract_msg
+import os
 import pandas as pd
-from flask import Flask, request, jsonify
-from flask.logging import default_handler
 from docx import Document
-from azure.ai.openai import AzureOpenAI
-from dotenv import load_dotenv
+import re
+from datetime import datetime
+from openai import AzureOpenAI
+from azure.core.credentials import AzureKeyCredential 
+from io import BytesIO 
+from dotenv import load_dotenv 
+
 import extract_msg
 
 # Set up logging
