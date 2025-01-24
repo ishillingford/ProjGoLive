@@ -125,7 +125,7 @@ def process_email():
 
         info = extract_info_from_msg(email_stream)
         summarized_info = summarize_info(info)
-         response_data = {
+        response_data = {
             "extracted_info": info,
             "summarized_info": summarized_info
         }
