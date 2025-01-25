@@ -12,13 +12,9 @@ from datetime import datetime
 from openai import AzureOpenAI
 from io import BytesIO 
 from dotenv import load_dotenv 
-import logging
+
 import extract_msg
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-logger.addHandler(default_handler)
 
 # Load environment variables
 if os.getenv("FLASK_ENV") != "production":
@@ -78,7 +74,6 @@ def extract_info_from_msg(file_path):
                 )
                 info[key] = response.choices[0].message.content.strip()
             except Exception as api_error:
-                logger.error(f"OpenAI API call failed for '{key}': {api_error}")
                 info[key] = "Error extracting this field"
 
         if info["Completion Date"] == "Not Provided" or not re.search(r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b', info["Completion Date"], re.IGNORECASE):
@@ -87,7 +82,6 @@ def extract_info_from_msg(file_path):
 
         return info
     except Exception as e:
-        logger.error(f"Error extracting info from .msg: {e}")
         raise
 
 # Summarize extracted information
@@ -110,7 +104,6 @@ def summarize_info(info):
             )
             summarized_info[key] = response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Error summarizing '{key}': {e}")
             summarized_info[key] = "Error summarizing this field"
     return summarized_info
 
@@ -133,11 +126,9 @@ def process_email():
             "summarized_info": summarized_info
         }
 
-        logging.info("Successfully processed email.")
         return jsonify(response_data)
 
     except Exception as e:
-        logging.error(f"Error processing email: {e}")
         return jsonify({"error": str(e)}), 500 
         
 @app.route("/word", methods=["POST"])
@@ -152,7 +143,6 @@ def worddocumentation():
 
         return jsonify({"doc_path": base64.b64encode(modified_doc_bytes.getvalue()).decode('utf-8')})
     except Exception as e:
-        logger.error(f"Error creating Word documentation: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/excel", methods=["POST"])
@@ -162,7 +152,6 @@ def exceldocumentation():
         excel_bytes = create_summary_excel([data])
         return jsonify({"excel_path": base64.b64encode(excel_bytes.getvalue()).decode('utf-8')})
     except Exception as e:
-        logger.error(f"Error creating Excel documentation: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
