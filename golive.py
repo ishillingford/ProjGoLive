@@ -82,7 +82,7 @@ async def extract_info_from_msg(file_path):
 async def fetch_info(session, key, prompt, body):
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": f"{prompt}\n\n{body}"}
@@ -115,7 +115,7 @@ async def summarize_info(info):
 async def fetch_summary(session, key, prompt, content):
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": f"{prompt}\n\n{content}"}
