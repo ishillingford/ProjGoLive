@@ -10,7 +10,6 @@ from docx import Document
 import re
 from datetime import datetime
 from openai import AzureOpenAI
-from azure.core.credentials import AzureKeyCredential 
 from io import BytesIO 
 from dotenv import load_dotenv 
 
