@@ -1,6 +1,6 @@
 # Import necessary libraries
-from flask import Flask, request, jsonify 
-import json 
+from flask import Flask, request, jsonify
+import json
 import requests
 import base64
 import extract_msg
@@ -10,11 +10,10 @@ from docx import Document
 import re
 from datetime import datetime
 from openai import AzureOpenAI
-from io import BytesIO 
-from dotenv import load_dotenv 
-
-import extract_msg
-
+from io import BytesIO
+from dotenv import load_dotenv
+import asyncio
+import aiohttp
 
 # Load environment variables
 if os.getenv("FLASK_ENV") != "production":
@@ -35,7 +34,7 @@ client = AzureOpenAI(
 app = Flask(__name__)
 
 # Extract information from .msg file
-def extract_info_from_msg(file_path):
+async def extract_info_from_msg(file_path):
     try:
         msg = extract_msg.Message(file_path)
         email_date = msg.date
@@ -63,18 +62,14 @@ def extract_info_from_msg(file_path):
             "Industry": "Extract the industry related to the project:"
         }
 
-        for key, prompt in prompts.items():
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": f"{prompt}\n\n{body}"}
-                    ]
-                )
-                info[key] = response.choices[0].message.content.strip()
-            except Exception as api_error:
-                info[key] = "Error extracting this field"
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for key, prompt in prompts.items():
+                tasks.append(fetch_info(session, key, prompt, body))
+            results = await asyncio.gather(*tasks)
+
+        for key, result in results:
+            info[key] = result
 
         if info["Completion Date"] == "Not Provided" or not re.search(r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b', info["Completion Date"], re.IGNORECASE):
             if email_date:
@@ -84,8 +79,21 @@ def extract_info_from_msg(file_path):
     except Exception as e:
         raise
 
+async def fetch_info(session, key, prompt, body):
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": f"{prompt}\n\n{body}"}
+            ]
+        )
+        return key, response.choices[0].message.content.strip()
+    except Exception as api_error:
+        return key, "Error extracting this field"
+
 # Summarize extracted information
-def summarize_info(info):
+async def summarize_info(info):
     summary_prompts = {
         key: f"Summarize {key.lower()} briefly:" for key in [
             "Project Objectives", "Business Challenges", "Our Approach", "Value Created", "Measures of Success"
@@ -93,34 +101,44 @@ def summarize_info(info):
     }
 
     summarized_info = info.copy()
-    for key, prompt in summary_prompts.items():
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": f"{prompt}\n\n{info[key]}"}
-                ]
-            )
-            summarized_info[key] = response.choices[0].message.content.strip()
-        except Exception as e:
-            summarized_info[key] = "Error summarizing this field"
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for key, prompt in summary_prompts.items():
+            tasks.append(fetch_summary(session, key, prompt, info[key]))
+        results = await asyncio.gather(*tasks)
+
+    for key, result in results:
+        summarized_info[key] = result
+
     return summarized_info
+
+async def fetch_summary(session, key, prompt, content):
+    try:
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": f"{prompt}\n\n{content}"}
+            ]
+        )
+        return key, response.choices[0].message.content.strip()
+    except Exception as e:
+        return key, "Error summarizing this field"
 
 # Flask routes
 @app.route("/process-email", methods=["POST"])
-def process_email():
+async def process_email():
     try:
         data = request.json
         base64_content = data.get("$content")
         if not base64_content:
             return jsonify({"error": "No content provided"}), 400
 
-        decoded_content = base64.b64decode(base64_content) 
+        decoded_content = base64.b64decode(base64_content)
         email_stream = BytesIO(decoded_content)
 
-        info = extract_info_from_msg(email_stream)
-        summarized_info = summarize_info(info)
+        info = await extract_info_from_msg(email_stream)
+        summarized_info = await summarize_info(info)
         response_data = {
             "extracted_info": info,
             "summarized_info": summarized_info
@@ -129,10 +147,10 @@ def process_email():
         return jsonify(response_data)
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500 
-        
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/word", methods=["POST"])
-def worddocumentation():
+async def worddocumentation():
     try:
         info = request.get_json()
         document_base64 = info.get("document")
@@ -146,7 +164,7 @@ def worddocumentation():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/excel", methods=["POST"])
-def exceldocumentation():
+async def exceldocumentation():
     try:
         data = request.get_json()
         excel_bytes = create_summary_excel([data])
@@ -156,4 +174,3 @@ def exceldocumentation():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
