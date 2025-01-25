@@ -12,7 +12,7 @@ from datetime import datetime
 from openai import AzureOpenAI
 from io import BytesIO 
 from dotenv import load_dotenv 
-
+import logging
 import extract_msg
 
 # Set up logging
