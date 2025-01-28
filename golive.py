@@ -11,6 +11,8 @@ import extract_msg
 import os
 from dotenv import load_dotenv
 import concurrent.futures
+import pandas as pd
+from docx import Document
 
 # Load environment variables
 if os.getenv("FLASK_ENV") != "production":
@@ -28,9 +30,16 @@ app = FastAPI()
 # Semaphore to limit concurrent API requests
 semaphore = asyncio.Semaphore(5)
 
-# Request model
+# Request models
 class EmailRequest(BaseModel):
     content: str  # Base64-encoded .msg file
+
+class WordRequest(BaseModel):
+    document: str  # Base64-encoded Word document
+    info: Dict[str, str]
+
+class ExcelRequest(BaseModel):
+    info: Dict[str, str]
 
 # Extract information from .msg file
 def sync_extract_msg(file_path):
@@ -142,7 +151,7 @@ async def fetch_summary(session, key, prompt, content):
     except Exception as e:
         return key, f"Error: {str(e)}"
 
-# API Endpoint
+# API Endpoint for processing email
 @app.post("/process-email")
 async def process_email(request: EmailRequest):
     try:
@@ -165,3 +174,39 @@ async def process_email(request: EmailRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# API Endpoint for Word documentation
+@app.post("/word")
+async def word_documentation(request: WordRequest):
+    try:
+        document_base64 = request.document
+        data = request.info
+
+        document_bytes = BytesIO(base64.b64decode(document_base64))
+        doc = Document(document_bytes)
+
+        # Example: Add summary content to the Word document
+        doc.add_heading("Summary", level=1)
+        for key, value in data.items():
+            doc.add_heading(key, level=2)
+            doc.add_paragraph(value)
+
+        modified_doc_bytes = BytesIO()
+        doc.save(modified_doc_bytes)
+
+        return {"document": base64.b64encode(modified_doc_bytes.getvalue()).decode('utf-8')}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# API Endpoint for Excel documentation
+@app.post("/excel")
+async def excel_documentation(request: ExcelRequest):
+    try:
+        data = request.info
+        df = pd.DataFrame([data])
+
+        modified_excel_bytes = BytesIO()
+        df.to_excel(modified_excel_bytes, index=False)
+
+        return {"excel": base64.b64encode(modified_excel_bytes.getvalue()).decode('utf-8')}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
