@@ -1,15 +1,14 @@
-docx==0.2.4
-extract_msg==0.48.5
-Flask==3.1.0
-openai==1.59.6
-pandas==2.2.3
-python-dotenv==1.0.1
-python_docx==1.1.2
-Requests==2.32.3
+docx==0.2.4               # For handling Word documents
+extract_msg==0.48.5       # For parsing .msg files
+Flask==3.1.0              # Lightweight web framework
+openai==1.59.6            # For OpenAI API interaction
+pandas==2.2.3             # For data manipulation
+python-dotenv==1.0.1      # For environment variable management
+python_docx==1.1.2        # Alternative library for Word documents
+requests==2.32.3          # For HTTP requests
 
-aiohttp==3.7.4.post0
-fastapi==0.100.0
-aiohttp==3.8.5
-pydantic==1.10.8
-gunicorn==21.0.1
-uvicorn==0.23.1
+aiohttp==3.7.4.post0      # Compatible version to avoid conflicts
+fastapi==0.95.2           # Works with older aiohttp versions
+pydantic==1.10.8          # Data validation for FastAPI
+gunicorn==21.0.1          # For production server
+uvicorn==0.22.0           # ASGI server compatible with FastAPI
