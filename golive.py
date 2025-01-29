@@ -1,10 +1,9 @@
-from fastapi import FastAPI, HTTPException
+rom fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict
 import base64
 import re
 import asyncio
-import aiohttp
 from io import BytesIO
 from datetime import datetime
 import extract_msg
@@ -13,6 +12,8 @@ from dotenv import load_dotenv
 import concurrent.futures
 import pandas as pd
 from docx import Document
+from openai import AsyncAzureOpenAI
+from starlette.responses import StreamingResponse
 
 # Load environment variables
 if os.getenv("FLASK_ENV") != "production":
@@ -23,6 +24,13 @@ azure_endpoint = os.getenv("AZURE_OPENAI")
 model_name = "gpt-4o-mini"
 if not api_key or not azure_endpoint:
     raise EnvironmentError("AZURE_OPENAI_API_key or AZURE_OPENAI not set!")
+
+# Initialize AsyncAzureOpenAI client
+client = AsyncAzureOpenAI(
+    api_key=api_key,
+    azure_endpoint=azure_endpoint,
+    api_version="2024-08-01-preview",
+)
 
 # FastAPI app initialization
 app = FastAPI()
@@ -40,6 +48,9 @@ class WordRequest(BaseModel):
 
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
+
+class Prompt(BaseModel):
+    input: str
 
 # Extract information from .msg file
 def sync_extract_msg(file_path):
@@ -72,9 +83,8 @@ async def extract_info_from_msg(file_path):
     }
 
     # Collect results using async tasks
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_info(session, key, prompt, body) for key, prompt in prompts.items()]
-        results = await asyncio.gather(*tasks)
+    tasks = [fetch_info(key, prompt, body) for key, prompt in prompts.items()]
+    results = await asyncio.gather(*tasks)
 
     # Build the result dictionary
     info = {key: result for key, result in results}
@@ -90,10 +100,8 @@ async def extract_info_from_msg(file_path):
 
     return info
 
-async def fetch_info(session, key, prompt, body):
+async def fetch_info(key, prompt, body):
     """Fetches specific information using Azure OpenAI."""
-    url = f"{azure_endpoint}/openai/deployments/{model_name}/chat/completions?api-version=2024-08-01-preview"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -102,12 +110,12 @@ async def fetch_info(session, key, prompt, body):
     }
 
     try:
-        async with semaphore, session.post(url, json=payload, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                return key, data['choices'][0]['message']['content'].strip()
-            else:
-                return key, f"Error: {response.status}"
+        async with semaphore:
+            response = await client.chat_completions.create(
+                deployment_id=model_name,
+                messages=payload["messages"]
+            )
+            return key, response['choices'][0]['message']['content'].strip()
     except Exception as e:
         return key, f"Error: {str(e)}"
 
@@ -120,9 +128,8 @@ async def summarize_info(info):
         ]
     }
 
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_summary(session, key, prompt, info[key]) for key, prompt in summary_prompts.items()]
-        results = await asyncio.gather(*tasks)
+    tasks = [fetch_summary(key, prompt, info[key]) for key, prompt in summary_prompts.items()]
+    results = await asyncio.gather(*tasks)
 
     summarized_info = info.copy()
     for key, result in results:
@@ -130,10 +137,8 @@ async def summarize_info(info):
 
     return summarized_info
 
-async def fetch_summary(session, key, prompt, content):
+async def fetch_summary(key, prompt, content):
     """Fetches summarized content using Azure OpenAI."""
-    url = f"{azure_endpoint}/openai/deployments/{model_name}/chat/completions?api-version=2024-08-01-preview"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload = {
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
@@ -142,14 +147,33 @@ async def fetch_summary(session, key, prompt, content):
     }
 
     try:
-        async with semaphore, session.post(url, json=payload, headers=headers) as response:
-            if response.status == 200:
-                data = await response.json()
-                return key, data['choices'][0]['message']['content'].strip()
-            else:
-                return key, f"Error: {response.status}"
+        async with semaphore:
+            response = await client.chat_completions.create(
+                deployment_id=model_name,
+                messages=payload["messages"]
+            )
+            return key, response['choices'][0]['message']['content'].strip()
     except Exception as e:
         return key, f"Error: {str(e)}"
+
+# Generate Stream
+async def stream_processor(response):
+    async for chunk in response:
+        if len(chunk.choices) > 0:
+            delta = chunk.choices[0].delta
+            if delta.content:
+                yield delta.content
+
+# API Endpoint for streaming
+@app.post("/stream")
+async def stream(prompt: Prompt):
+    azure_open_ai_response = await client.chat_completions.create(
+        deployment_id=model_name,
+        messages=[{"role": "user", "content": prompt.input}],
+        stream=True
+    )
+
+    return StreamingResponse(stream_processor(azure_open_ai_response), media_type="text/event-stream")
 
 # API Endpoint for processing email
 @app.post("/process-email")
