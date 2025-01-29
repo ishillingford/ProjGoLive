@@ -234,12 +234,9 @@ async def process_email(request: EmailRequest):
 @app.post("/word")
 async def word_documentation(request: WordRequest):
     try:
-        # Parse JSON request
-        data = request.get_json()
-
         # Extract document and project data
-        document_base64 = data.get('document', '')
-        project_data = json.loads(data.get('data', '[]'))
+        document_base64 = request.document
+        project_data = request.info  # Assuming this is already a dictionary
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
