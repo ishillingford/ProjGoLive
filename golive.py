@@ -44,7 +44,7 @@ class EmailRequest(BaseModel):
 
 class WordRequest(BaseModel):
     document: str  # Base64-encoded Word document
-    info: Dict[str, str]
+    data: Dict[str, str]
 
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
@@ -236,7 +236,7 @@ async def word_documentation(request: WordRequest):
     try:
         # Extract document and project data
         document_base64 = request.document
-        project_data = request.info  # Assuming this is already a dictionary
+        project_data = request.data  # Assuming this is already a dictionary
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
