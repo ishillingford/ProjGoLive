@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Dict
+from typing import Dict, List
 import base64
 import re
 import asyncio
@@ -44,7 +44,7 @@ class EmailRequest(BaseModel):
 
 class WordRequest(BaseModel):
     document: str  # Base64-encoded Word document
-    data: Dict[str, str]
+    data: List[Dict[str, str]]
 
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
@@ -232,14 +232,37 @@ async def process_email(request: EmailRequest):
 
 # API Endpoint for Word documentation 
 @app.post("/word")
-async def word_documentation(request: WordRequest):
+async def word_documentation(request: WordRequest): 
     try:
         # Extract document and project data
         document_base64 = request.document
-        project_data = request.data  # Assuming this is already a dictionary
+        project_data = request.data  # Now it's already a List[Dict[str, str]]
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
+
+        # No need to convert project_data from JSON string to a list of dictionaries
+
+        # Generate updated document
+        updated_doc_base64 = await create_summary_doc(document_base64, project_data)
+
+        return jsonify({'document': updated_doc_base64}), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500 
+        
+# API Endpoint for Word documentation 
+@app.post("/word")
+async def word_documentation(request: WordRequest): 
+    try:
+        # Extract document and project data
+        document_base64 = request.document
+        project_data = request.data  # Now it's already a List[Dict[str, str]]
+
+        if not document_base64 or not project_data:
+            return jsonify({'error': 'Missing document or data'}), 400
+
+        # No need to convert project_data from JSON string to a list of dictionaries
 
         # Generate updated document
         updated_doc_base64 = await create_summary_doc(document_base64, project_data)
@@ -248,6 +271,7 @@ async def word_documentation(request: WordRequest):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 # API Endpoint for Excel documentation
 @app.post("/excel")
