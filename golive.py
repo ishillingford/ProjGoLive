@@ -42,9 +42,21 @@ semaphore = asyncio.Semaphore(5)
 class EmailRequest(BaseModel):
     content: str  # Base64-encoded .msg file
 
+class ProjectData(BaseModel):
+    Project_Title: str
+    Client_Name: str
+    Use_Case: str
+    Completion_Date: str
+    Project_Objectives: str
+    Business_Challenges: str
+    Our_Approach: str
+    Value_Created: str
+    Measures_of_Success: str
+    Industry: str
+
 class WordRequest(BaseModel):
     document: str  # Base64-encoded Word document
-    data: List[Dict[str, str]]
+    data: List[ProjectData]  # List of ProjectData objects
 
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
@@ -171,21 +183,21 @@ async def create_summary_doc(existing_doc_bytes, all_data):
 
     # Add new content
     for project in all_data:
-        doc.add_heading(project['Project Title'], level=1)
-        doc.add_paragraph(f"Client Name: {project['Client Name']}")
-        doc.add_paragraph(f"Use Case: {project['Use Case']}")
-        doc.add_paragraph(f"Industry: {project['Industry']}")
-        doc.add_paragraph(f"Completion Date: {project['Completion Date']}")
+        doc.add_heading(project.Project_Title, level=1)  # Access via dot notation for attributes
+        doc.add_paragraph(f"Client Name: {project.Client_Name}")
+        doc.add_paragraph(f"Use Case: {project.Use_Case}")
+        doc.add_paragraph(f"Industry: {project.Industry}")
+        doc.add_paragraph(f"Completion Date: {project.Completion_Date}")
         doc.add_paragraph("Project Objectives:")
-        doc.add_paragraph(project['Project Objectives'])
+        doc.add_paragraph(project.Project_Objectives)
         doc.add_paragraph("Business Challenges:")
-        doc.add_paragraph(project['Business Challenges'])
+        doc.add_paragraph(project.Business_Challenges)
         doc.add_paragraph("Our Approach:")
-        doc.add_paragraph(project['Our Approach'])
+        doc.add_paragraph(project.Our_Approach)
         doc.add_paragraph("Value Created:")
-        doc.add_paragraph(project['Value Created'])
+        doc.add_paragraph(project.Value_Created)
         doc.add_paragraph("Measures of Success:")
-        doc.add_paragraph(project['Measures of Success'])
+        doc.add_paragraph(project.Measures_of_Success)
 
     # Save the document to bytes
     updated_doc_bytes = io.BytesIO()
@@ -194,7 +206,8 @@ async def create_summary_doc(existing_doc_bytes, all_data):
 
     # Convert to base64 for response
     encoded_doc = base64.b64encode(updated_doc_bytes.getvalue()).decode('utf-8')
-    return encoded_doc 
+    return encoded_doc
+
     
 # API Endpoint for streaming
 @app.post("/stream")
@@ -236,33 +249,10 @@ async def word_documentation(request: WordRequest):
     try:
         # Extract document and project data
         document_base64 = request.document
-        project_data = request.data  # Now it's already a List[Dict[str, str]]
+        project_data = request.data  # List of ProjectData objects
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
-
-        # No need to convert project_data from JSON string to a list of dictionaries
-
-        # Generate updated document
-        updated_doc_base64 = await create_summary_doc(document_base64, project_data)
-
-        return jsonify({'document': updated_doc_base64}), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500 
-        
-# API Endpoint for Word documentation 
-@app.post("/word")
-async def word_documentation(request: WordRequest): 
-    try:
-        # Extract document and project data
-        document_base64 = request.document
-        project_data = request.data  # Now it's already a List[Dict[str, str]]
-
-        if not document_base64 or not project_data:
-            return jsonify({'error': 'Missing document or data'}), 400
-
-        # No need to convert project_data from JSON string to a list of dictionaries
 
         # Generate updated document
         updated_doc_base64 = await create_summary_doc(document_base64, project_data)
@@ -271,8 +261,7 @@ async def word_documentation(request: WordRequest):
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-
+        
 # API Endpoint for Excel documentation
 @app.post("/excel")
 async def excel_documentation(request: ExcelRequest):
