@@ -203,7 +203,7 @@ async def process_email(request: EmailRequest):
 async def word_documentation(request: WordRequest):
     try:
         document_base64 = request.document
-        data = request.info
+        data = request.data
 
         document_bytes = BytesIO(base64.b64decode(document_base64))
         doc = Document(document_bytes)
