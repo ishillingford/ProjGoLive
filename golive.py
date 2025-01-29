@@ -167,7 +167,7 @@ async def stream_processor(response):
 # API Endpoint for streaming
 @app.post("/stream")
 async def stream(prompt: Prompt):
-    azure_open_ai_response = await client.chat_completions.create(
+    azure_open_ai_response = await client.chat.completions.create(
         deployment_id=model_name,
         messages=[{"role": "user", "content": prompt.input}],
         stream=True
