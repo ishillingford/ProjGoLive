@@ -111,7 +111,7 @@ async def fetch_info(key, prompt, body):
 
     try:
         async with semaphore:
-            response = await client.chat_completions.create(
+            response = await client.chat.completions.create(
                 deployment_id=model_name,
                 messages=payload["messages"]
             )
@@ -148,7 +148,7 @@ async def fetch_summary(key, prompt, content):
 
     try:
         async with semaphore:
-            response = await client.chat_completions.create(
+            response = await client.chat.completions.create(
                 deployment_id=model_name,
                 messages=payload["messages"]
             )
