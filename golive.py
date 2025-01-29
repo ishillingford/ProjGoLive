@@ -112,10 +112,10 @@ async def fetch_info(key, prompt, body):
     try:
         async with semaphore:
             response = await client.chat.completions.create(
-                model =model_name,
+                model = model_name,
                 messages=payload["messages"]
             )
-            return key, response['choices'][0]['message']['content'].strip()
+            return key, response.choices[0].message.content.strip()
     except Exception as e:
         return key, f"Error: {str(e)}"
 
@@ -149,10 +149,10 @@ async def fetch_summary(key, prompt, content):
     try:
         async with semaphore:
             response = await client.chat.completions.create(
-                model =model_name,
+                model = model_name,
                 messages=payload["messages"]
             )
-            return key, response['choices'][0]['message']['content'].strip()
+            return key, response.choices[0].message.content.strip()
     except Exception as e:
         return key, f"Error: {str(e)}"
 
@@ -168,7 +168,7 @@ async def stream_processor(response):
 @app.post("/stream")
 async def stream(prompt: Prompt):
     azure_open_ai_response = await client.chat.completions.create(
-        model=model_name,
+        model = model_name,
         messages=[{"role": "user", "content": prompt.input}],
         stream=True
     )
