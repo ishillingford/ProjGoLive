@@ -230,9 +230,9 @@ async def process_email(request: EmailRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# API Endpoint for Word documentation
-@app.route('/word', methods=['POST'])
-async def generate_word_doc():
+# API Endpoint for Word documentation 
+@app.post("/word")
+async def word_documentation(request: WordRequest):
     try:
         # Parse JSON request
         data = request.get_json()
