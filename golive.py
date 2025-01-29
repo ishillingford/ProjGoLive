@@ -42,21 +42,9 @@ semaphore = asyncio.Semaphore(5)
 class EmailRequest(BaseModel):
     content: str  # Base64-encoded .msg file
 
-class ProjectData(BaseModel):
-    Project_Title: str
-    Client_Name: str
-    Use_Case: str
-    Completion_Date: str
-    Project_Objectives: str
-    Business_Challenges: str
-    Our_Approach: str
-    Value_Created: str
-    Measures_of_Success: str
-    Industry: str
-
 class WordRequest(BaseModel):
     document: str  # Base64-encoded Word document
-    data: List[ProjectData]  # List of ProjectData objects
+    data: str  # List of ProjectData objects
 
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
@@ -183,21 +171,26 @@ async def create_summary_doc(existing_doc_bytes, all_data):
 
     # Add new content
     for project in all_data:
-        doc.add_heading(project.Project_Title, level=1)  # Access via dot notation for attributes
-        doc.add_paragraph(f"Client Name: {project.Client_Name}")
-        doc.add_paragraph(f"Use Case: {project.Use_Case}")
-        doc.add_paragraph(f"Industry: {project.Industry}")
-        doc.add_paragraph(f"Completion Date: {project.Completion_Date}")
+        doc.add_heading(project['Project Title'], level=1)
+        doc.add_paragraph(f"Client Name: {project['Client Name']}")
+        doc.add_paragraph(f"Use Case: {project['Use Case']}")
+        doc.add_paragraph(f"Industry: {project['Industry']}")
+        doc.add_paragraph(f"Completion Date: {project['Completion Date']}")
         doc.add_paragraph("Project Objectives:")
-        doc.add_paragraph(project.Project_Objectives)
+        for objective in project['Project Objectives']:
+            doc.add_paragraph(objective, style='List Bullet')
         doc.add_paragraph("Business Challenges:")
-        doc.add_paragraph(project.Business_Challenges)
+        for challenge in project['Business Challenges']:
+            doc.add_paragraph(challenge, style='List Bullet')
         doc.add_paragraph("Our Approach:")
-        doc.add_paragraph(project.Our_Approach)
+        for approach in project['Our Approach']:
+            doc.add_paragraph(approach, style='List Bullet')
         doc.add_paragraph("Value Created:")
-        doc.add_paragraph(project.Value_Created)
+        for value in project['Value Created']:
+            doc.add_paragraph(value, style='List Bullet')
         doc.add_paragraph("Measures of Success:")
-        doc.add_paragraph(project.Measures_of_Success)
+        for measure in project['Measures of Success']:
+            doc.add_paragraph(measure, style='List Bullet')
 
     # Save the document to bytes
     updated_doc_bytes = io.BytesIO()
@@ -249,11 +242,14 @@ async def word_documentation(request: WordRequest):
     try:
         # Extract document and project data
         document_base64 = request.document
-        project_data = request.data  # List of ProjectData objects
+        project_data_str = request.data
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
-
+            
+        # Parse the JSON string to a list of dictionaries
+        project_data = json.loads(project_data_str) 
+        
         # Generate updated document
         updated_doc_base64 = await create_summary_doc(document_base64, project_data)
 
