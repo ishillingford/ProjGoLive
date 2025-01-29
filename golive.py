@@ -164,6 +164,38 @@ async def stream_processor(response):
             if delta.content:
                 yield delta.content
 
+async def create_summary_doc(existing_doc_bytes, all_data):
+    # Decode the base64 document
+    doc_content = base64.b64decode(existing_doc_bytes)
+    doc = Document(doc_content)
+
+    # Add new content
+    for project in all_data:
+        doc.add_heading(project['Project Title'], level=1)
+        doc.add_paragraph(f"Client Name: {project['Client Name']}")
+        doc.add_paragraph(f"Use Case: {project['Use Case']}")
+        doc.add_paragraph(f"Industry: {project['Industry']}")
+        doc.add_paragraph(f"Completion Date: {project['Completion Date']}")
+        doc.add_paragraph("Project Objectives:")
+        doc.add_paragraph(project['Project Objectives'])
+        doc.add_paragraph("Business Challenges:")
+        doc.add_paragraph(project['Business Challenges'])
+        doc.add_paragraph("Our Approach:")
+        doc.add_paragraph(project['Our Approach'])
+        doc.add_paragraph("Value Created:")
+        doc.add_paragraph(project['Value Created'])
+        doc.add_paragraph("Measures of Success:")
+        doc.add_paragraph(project['Measures of Success'])
+
+    # Save the document to bytes
+    updated_doc_bytes = io.BytesIO()
+    doc.save(updated_doc_bytes)
+    updated_doc_bytes.seek(0)
+
+    # Convert to base64 for response
+    encoded_doc = base64.b64encode(updated_doc_bytes.getvalue()).decode('utf-8')
+    return encoded_doc 
+    
 # API Endpoint for streaming
 @app.post("/stream")
 async def stream(prompt: Prompt):
@@ -199,27 +231,26 @@ async def process_email(request: EmailRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # API Endpoint for Word documentation
-@app.post("/word")
-async def word_documentation(request: WordRequest):
+@app.route('/word', methods=['POST'])
+async def generate_word_doc():
     try:
-        document_base64 = request.document
-        data = request.data
+        # Parse JSON request
+        data = request.get_json()
 
-        document_bytes = BytesIO(base64.b64decode(document_base64))
-        doc = Document(document_bytes)
+        # Extract document and project data
+        document_base64 = data.get('document', '')
+        project_data = json.loads(data.get('data', '[]'))
 
-        # Example: Add summary content to the Word document
-        doc.add_heading("Summary", level=1)
-        for key, value in data.items():
-            doc.add_heading(key, level=2)
-            doc.add_paragraph(value)
+        if not document_base64 or not project_data:
+            return jsonify({'error': 'Missing document or data'}), 400
 
-        modified_doc_bytes = BytesIO()
-        doc.save(modified_doc_bytes)
+        # Generate updated document
+        updated_doc_base64 = await create_summary_doc(document_base64, project_data)
 
-        return {"document": base64.b64encode(modified_doc_bytes.getvalue()).decode('utf-8')}
+        return jsonify({'document': updated_doc_base64}), 200
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return jsonify({'error': str(e)}), 500
 
 # API Endpoint for Excel documentation
 @app.post("/excel")
