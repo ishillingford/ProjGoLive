@@ -42,10 +42,6 @@ semaphore = asyncio.Semaphore(5)
 class EmailRequest(BaseModel):
     content: str  # Base64-encoded .msg file
 
-class WordRequest(BaseModel):
-    document: str  # Base64-encoded Word document
-    data: str  # List of ProjectData objects
-
 class ExcelRequest(BaseModel):
     info: Dict[str, str]
 
@@ -164,7 +160,7 @@ async def stream_processor(response):
             if delta.content:
                 yield delta.content
 
-async def create_summary_doc(existing_doc_bytes, all_data):
+def create_summary_doc(existing_doc_bytes, all_data):
     # Decode the base64 document
     doc_content = base64.b64decode(existing_doc_bytes)
     doc = Document(doc_content)
@@ -237,21 +233,27 @@ async def process_email(request: EmailRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 # API Endpoint for Word documentation 
-@app.post("/word")
-async def word_documentation(request: WordRequest): 
+@app.route("/word", methods=["POST"])
+def word_documentation():
     try:
+        # Get the request data from Flask's request object
+        request_data = request.get_json()
+
         # Extract document and project data
-        document_base64 = request.document
-        project_data_str = request.data
+        project_data_str = request_data.get("data") 
+        document_base64 = request_data.get("document")
 
         if not document_base64 or not project_data:
             return jsonify({'error': 'Missing document or data'}), 400
             
         # Parse the JSON string to a list of dictionaries
-        project_data = json.loads(project_data_str) 
-        
+        project_data = json.loads(project_data_str)  
+
+        # Convert project_data to DataFrame
+        project_df = pd.DataFrame(project_data)
+
         # Generate updated document
-        updated_doc_base64 = await create_summary_doc(document_base64, project_data)
+        updated_doc_base64 = await create_summary_doc(document_base64, project_df)
 
         return jsonify({'document': updated_doc_base64}), 200
 
