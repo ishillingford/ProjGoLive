@@ -74,10 +74,10 @@ async def extract_info_from_msg(file_path):
 
     # Prompts for information extraction
     prompts = {
-        "Project Title": "The project title is:",
-        "Client Name": "The client name (not Lionpoint) is:",
-        "Use Case": "The specific use cases is, examples are waterfall,asset management, workforce planiing, ect.:",
-        "Completion Date": "The completion date (Month and Year) is:",
+        "Project Title": "Provide the project title only:",
+        "Client Name": "Provide the client name (not Lionpoint) only:",
+        "Use Case": "Provide the specific use cases only, examples are waterfall,asset management, workforce planiing, ect.:",
+        "Completion Date": "The completion date (Month and Year) only:",
         "Project Objectives": "Extract the main objectives of the project:",
         "Business Challenges": "Extract the key business challenges faced by the client:",
         "Our Approach": "Extract the approach taken during the project:",
