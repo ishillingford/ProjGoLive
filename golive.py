@@ -74,10 +74,10 @@ async def extract_info_from_msg(file_path):
 
     # Prompts for information extraction
     prompts = {
-        "Project Title": "Extract the project title:",
-        "Client Name": "Extract the client name (not Lionpoint):",
-        "Use Case": "Extract the specific use case or objective of the project:",
-        "Completion Date": "Extract the completion date (Month and Year):",
+        "Project Title": "The project title is:",
+        "Client Name": "The client name (not Lionpoint) is:",
+        "Use Case": "The specific use cases is, examples are waterfall,asset management, workforce planiing, ect.:",
+        "Completion Date": "The completion date (Month and Year) is:",
         "Project Objectives": "Extract the main objectives of the project:",
         "Business Challenges": "Extract the key business challenges faced by the client:",
         "Our Approach": "Extract the approach taken during the project:",
@@ -169,7 +169,7 @@ async def stream_processor(response):
                 yield delta.content 
                 
 
-def add_heading_and_text(doc, heading, text, style=None):
+async def add_heading_and_text(doc, heading, text, style=None):
     # Add the section heading
     doc.add_heading(heading, level=2)
 
@@ -226,17 +226,17 @@ async def create_summary_doc(existing_doc_bytes, all_data):
         doc.add_heading(project['Project Title'], level=1)
 
         # Using the add_heading_and_text utility to add client information
-        add_heading_and_text(doc, 'Client Name:', project['Client Name'], 'Body Text')
-        add_heading_and_text(doc, 'Use Case:', project['Use Case'], 'Body Text')
-        add_heading_and_text(doc, 'Industry:', project['Industry'], 'Body Text')
-        add_heading_and_text(doc, 'Completion Date:', project['Completion Date'], 'Body Text')
+        await add_heading_and_text(doc, 'Client Name:', project['Client Name'], 'Body Text')
+        await add_heading_and_text(doc, 'Use Case:', project['Use Case'], 'Body Text')
+        await add_heading_and_text(doc, 'Industry:', project['Industry'], 'Body Text')
+        await add_heading_and_text(doc, 'Completion Date:', project['Completion Date'], 'Body Text')
 
         # Adding sections to the document
-        add_heading_and_text(doc, 'Project Objectives:', project['Project Objectives'], None)
-        add_heading_and_text(doc, 'Business Challenges:', project['Business Challenges'], None)
-        add_heading_and_text(doc, 'Our Approach:', project['Our Approach'], None)
-        add_heading_and_text(doc, 'Value Created:', project['Value Created'], None)
-        add_heading_and_text(doc, 'Measures of Success:', project['Measures of Success'], None)
+        await add_heading_and_text(doc, 'Project Objectives:', project['Project Objectives'], None)
+        await add_heading_and_text(doc, 'Business Challenges:', project['Business Challenges'], None)
+        await add_heading_and_text(doc, 'Our Approach:', project['Our Approach'], None)
+        await add_heading_and_text(doc, 'Value Created:', project['Value Created'], None)
+        await add_heading_and_text(doc, 'Measures of Success:', project['Measures of Success'], None)
 
     # Save the modified document to bytes
     updated_doc_bytes = BytesIO()
