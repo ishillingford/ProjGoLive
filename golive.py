@@ -4,7 +4,7 @@ from typing import Dict, List
 import base64
 import re
 import asyncio
-from io import BytesIO
+from io import BytesIO 
 from datetime import datetime
 import extract_msg
 import os
@@ -13,7 +13,10 @@ import concurrent.futures
 import pandas as pd
 from docx import Document
 from openai import AsyncAzureOpenAI
-from starlette.responses import StreamingResponse
+from starlette.responses import StreamingResponse 
+from fastapi.responses import JSONResponse 
+import json 
+from docx.shared import Inches
 
 # Load environment variables
 if os.getenv("FLASK_ENV") != "production":
@@ -43,7 +46,12 @@ class EmailRequest(BaseModel):
     content: str  # Base64-encoded .msg file
 
 class ExcelRequest(BaseModel):
-    info: Dict[str, str]
+    info: Dict[str, str] 
+    
+# Define request model
+class WordRequest(BaseModel):
+    data: str  # JSON string
+    document: str  # Base64 encoded Word file
 
 class Prompt(BaseModel):
     input: str
@@ -158,46 +166,89 @@ async def stream_processor(response):
         if len(chunk.choices) > 0:
             delta = chunk.choices[0].delta
             if delta.content:
-                yield delta.content
+                yield delta.content 
+                
 
-def create_summary_doc(existing_doc_bytes, all_data):
+def add_heading_and_text(doc, heading, text, style=None):
+    # Add the section heading
+    doc.add_heading(heading, level=2)
+
+    # Check if text is a non-empty string
+    if isinstance(text, str) and text.strip():  # Check if text is non-empty
+        paragraphs = text.split('\n')  # Split by new line
+
+        for line in paragraphs:
+            line = line.strip()  # Remove whitespace
+            if line:  # Only proceed if the line is not empty
+                # Check for bold text within ** **
+                segments = line.split('**')
+                paragraph = doc.add_paragraph()  # Create a new paragraph
+                
+
+                # Proper handling for bullet points or numbered items based on the first character
+                if line.startswith('•'):  # Check if it starts with a bullet
+                    bullet_text = line[1:].strip()  # Remove the bullet character
+                    bullet_paragraph = doc.add_paragraph(bullet_text)
+                    bullet_paragraph.style = 'List Bullet'  # Set the style for bullet 
+                    paragraph.paragraph_format.left_indent = Inches(0.50)  # Indent the numbered line
+                elif line[0].isdigit():  # Check if it starts with a number
+                    # For numbered lines, treat them as bold but add as separate paragraph 
+                    for i, segment in enumerate(segments):
+                        if i % 2 == 1:  # This means it is a bold text segment (between **)
+                            paragraph.add_run(segment).bold = True  # Make it bold
+                        else:  # Regular text
+                            paragraph.add_run(segment)
+                    paragraph.paragraph_format.left_indent = Inches(0.50)  # Indent the numbered line
+                else:
+                    # If it's plain text without bullets or numbers, just add it normally
+                    paragraph.add_run(line)  # Add as normal text
+
+    elif text:
+        # If text is a single line without new lines
+        if style:
+            doc.add_paragraph(text, style=style)
+        else:
+            doc.add_paragraph(text)
+
+async def create_summary_doc(existing_doc_bytes, all_data):
     # Decode the base64 document
     doc_content = base64.b64decode(existing_doc_bytes)
-    doc = Document(doc_content)
 
-    # Add new content
+    # Create a BytesIO object to hold the document in memory
+    doc_stream = BytesIO(doc_content)
+
+    # Open the document
+    doc = Document(doc_stream)
+
+    # Process the provided project data
     for project in all_data:
+        # Adding project title
         doc.add_heading(project['Project Title'], level=1)
-        doc.add_paragraph(f"Client Name: {project['Client Name']}")
-        doc.add_paragraph(f"Use Case: {project['Use Case']}")
-        doc.add_paragraph(f"Industry: {project['Industry']}")
-        doc.add_paragraph(f"Completion Date: {project['Completion Date']}")
-        doc.add_paragraph("Project Objectives:")
-        for objective in project['Project Objectives']:
-            doc.add_paragraph(objective, style='List Bullet')
-        doc.add_paragraph("Business Challenges:")
-        for challenge in project['Business Challenges']:
-            doc.add_paragraph(challenge, style='List Bullet')
-        doc.add_paragraph("Our Approach:")
-        for approach in project['Our Approach']:
-            doc.add_paragraph(approach, style='List Bullet')
-        doc.add_paragraph("Value Created:")
-        for value in project['Value Created']:
-            doc.add_paragraph(value, style='List Bullet')
-        doc.add_paragraph("Measures of Success:")
-        for measure in project['Measures of Success']:
-            doc.add_paragraph(measure, style='List Bullet')
 
-    # Save the document to bytes
-    updated_doc_bytes = io.BytesIO()
+        # Using the add_heading_and_text utility to add client information
+        add_heading_and_text(doc, 'Client Name:', project['Client Name'], 'Body Text')
+        add_heading_and_text(doc, 'Use Case:', project['Use Case'], 'Body Text')
+        add_heading_and_text(doc, 'Industry:', project['Industry'], 'Body Text')
+        add_heading_and_text(doc, 'Completion Date:', project['Completion Date'], 'Body Text')
+
+        # Adding sections to the document
+        add_heading_and_text(doc, 'Project Objectives:', project['Project Objectives'], None)
+        add_heading_and_text(doc, 'Business Challenges:', project['Business Challenges'], None)
+        add_heading_and_text(doc, 'Our Approach:', project['Our Approach'], None)
+        add_heading_and_text(doc, 'Value Created:', project['Value Created'], None)
+        add_heading_and_text(doc, 'Measures of Success:', project['Measures of Success'], None)
+
+    # Save the modified document to bytes
+    updated_doc_bytes = BytesIO()
     doc.save(updated_doc_bytes)
+
+    # Seek to the beginning to prepare for reading
     updated_doc_bytes.seek(0)
 
-    # Convert to base64 for response
+    # Convert the updated document to base64 for response
     encoded_doc = base64.b64encode(updated_doc_bytes.getvalue()).decode('utf-8')
     return encoded_doc
 
-    
 # API Endpoint for streaming
 @app.post("/stream")
 async def stream(prompt: Prompt):
@@ -232,33 +283,27 @@ async def process_email(request: EmailRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# API Endpoint for Word documentation 
-@app.route("/word", methods=["POST"])
-def word_documentation():
+# API Endpoint for Word documentation
+@app.post("/word")
+async def word_documentation(request: WordRequest):
     try:
-        # Get the request data from Flask's request object
-        request_data = request.get_json()
-
         # Extract document and project data
-        project_data_str = request_data.get("data") 
-        document_base64 = request_data.get("document")
-
+        document_base64 = request.document
+        project_data_string = request.data
+        
+        # Parse the JSON string from 'data' into a list of dictionaries
+        project_data = json.loads(project_data_string)
+        
         if not document_base64 or not project_data:
-            return jsonify({'error': 'Missing document or data'}), 400
-            
-        # Parse the JSON string to a list of dictionaries
-        project_data = json.loads(project_data_str)  
+            return JSONResponse(content={'error': 'Missing document or data'}, status_code=400)
 
-        # Convert project_data to DataFrame
-        project_df = pd.DataFrame(project_data)
-
-        # Generate updated document
-        updated_doc_base64 = await create_summary_doc(document_base64, project_df)
-
-        return jsonify({'document': updated_doc_base64}), 200
-
+        # Generate the updated document
+        updated_doc_base64 = await create_summary_doc(document_base64, project_data)
+        
+        # Return the updated document as base64
+        return JSONResponse(content={'modifiedDocument': updated_doc_base64}, status_code=200)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse(content={'error': str(e)}, status_code=500)
         
 # API Endpoint for Excel documentation
 @app.post("/excel")
