@@ -145,7 +145,7 @@ async def fetch_summary(key, prompt, content):
     """Fetches summarized content using Azure OpenAI."""
     payload = {
         "messages": [
-            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "system", "content": "Extract relevant information from the provided email and organize it into structured data to populate a word document template. The system will analyze the email content to identify key details, such as names, dates, locations, events, or other specified information, and structure the output in a pre-determined format designed for seamless integration into a word document template."},
             {"role": "user", "content": f"{prompt}\n\n{content}"}
         ]
     }
