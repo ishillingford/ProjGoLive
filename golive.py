@@ -74,10 +74,10 @@ async def extract_info_from_msg(file_path):
 
     # Prompts for information extraction
     prompts = {
-        "Project Title": "Provide the project title only:",
-        "Client Name": "Provide the client name (not Lionpoint) only:",
-        "Use Case": "Provide the specific use cases only, examples are waterfall,asset management, workforce planiing, ect.:",
-        "Completion Date": "The completion date (Month and Year) only:",
+        "Project Title": "Provide the project title only (e.g., Real Estate Fund Portfolio Management):",         
+        "Client Name": "Provide the client name (not Lionpoint) only (e.g., Bain Capital LP):",         
+        "Use Case": "Provide the specific use cases only (e.g., Real Estate Fund Forecasting, Waterfall, Asset Management, Workforce Planning):",         
+        "Completion Date": "Provide the completion date (Month and Year only, e.g., December 2021):",
         "Project Objectives": "Extract the main objectives of the project:",
         "Business Challenges": "Extract the key business challenges faced by the client:",
         "Our Approach": "Extract the approach taken during the project:",
@@ -145,7 +145,7 @@ async def fetch_summary(key, prompt, content):
     """Fetches summarized content using Azure OpenAI."""
     payload = {
         "messages": [
-            {"role": "system", "content": "Extract relevant information from the provided email and organize it into structured data to populate a word document template. The system will analyze the email content to identify key details, such as names, dates, locations, events, or other specified information, and structure the output in a pre-determined format designed for seamless integration into a word document template."},
+            {"role": "system", "content": "Extract relevant information from the provided email and organize it into structured data to populate a word document template. The system will analyze the email content to identify key details, such as names, dates, or other specified information, and structure the output in a pre-determined format designed for seamless integration into a word document template."},
             {"role": "user", "content": f"{prompt}\n\n{content}"}
         ]
     }
@@ -186,7 +186,7 @@ async def add_heading_and_text(doc, heading, text, style=None):
                 
 
                 # Proper handling for bullet points or numbered items based on the first character
-                if line.startswith('•'):  # Check if it starts with a bullet
+                if line.startswith('•') or line.startswith('-') :  # Check if it starts with a bullet
                     bullet_text = line[1:].strip()  # Remove the bullet character
                     bullet_paragraph = doc.add_paragraph(bullet_text)
                     bullet_paragraph.style = 'List Bullet'  # Set the style for bullet 
