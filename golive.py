@@ -173,38 +173,40 @@ async def add_heading_and_text(doc, heading, text, style=None):
     # Add the section heading
     doc.add_heading(heading, level=2)
 
-    # Check if text is a non-empty string
     if isinstance(text, str) and text.strip():  # Check if text is non-empty
         paragraphs = text.split('\n')  # Split by new line
+        numbered = False  # Flag to track if inside a numbered list
+        last_numbered_paragraph = None
 
         for line in paragraphs:
             line = line.strip()  # Remove whitespace
-            if line:  # Only proceed if the line is not empty
-                # Check for bold text within ** **
-                segments = line.split('**')
-                paragraph = doc.add_paragraph()  # Create a new paragraph
-                
+            if not line:
+                continue  # Skip empty lines
 
-                # Proper handling for bullet points or numbered items based on the first character
-                if line.startswith('•') or line.startswith('-') :  # Check if it starts with a bullet
-                    bullet_text = line[1:].strip()  # Remove the bullet character
-                    bullet_paragraph = doc.add_paragraph(bullet_text)
-                    bullet_paragraph.style = 'List Bullet'  # Set the style for bullet 
-                    paragraph.paragraph_format.left_indent = Inches(0.50)  # Indent the numbered line
-                elif line[0].isdigit():  # Check if it starts with a number
-                    # For numbered lines, treat them as bold but add as separate paragraph 
-                    for i, segment in enumerate(segments):
-                        if i % 2 == 1:  # This means it is a bold text segment (between **)
-                            paragraph.add_run(segment).bold = True  # Make it bold
-                        else:  # Regular text
-                            paragraph.add_run(segment)
-                    paragraph.paragraph_format.left_indent = Inches(0.50)  # Indent the numbered line
-                else:
-                    # If it's plain text without bullets or numbers, just add it normally
-                    paragraph.add_run(line)  # Add as normal text
+            segments = line.split('**')  # Split for bold text
+            paragraph = doc.add_paragraph()  # Create a new paragraph
+
+            if line[0].isdigit() and ('.' in line[:3] or ')' in line[:3]):  # Check for numbered list
+                numbered = True
+                last_numbered_paragraph = paragraph
+                number_text = line.split(maxsplit=1)  # Separate number from text
+                paragraph.add_run(number_text[0] + ' ').bold = True  # Bold the number
+                paragraph.add_run(number_text[1]) if len(number_text) > 1 else None
+                paragraph.paragraph_format.left_indent = Inches(0.50)
+            elif line.startswith('•') or line.startswith('-'):  # Check for bullet point
+                bullet_text = line.lstrip('• -')
+                bullet_paragraph = doc.add_paragraph(bullet_text)
+                bullet_paragraph.style = 'List Bullet'
+                bullet_paragraph.paragraph_format.left_indent = Inches(1.0 if numbered else 0.50)  # Indent appropriately
+            else:  # Regular text
+                numbered = False  # Reset numbered flag if normal text appears
+                for i, segment in enumerate(segments):
+                    if i % 2 == 1:
+                        paragraph.add_run(segment).bold = True  # Bold text
+                    else:
+                        paragraph.add_run(segment)
 
     elif text:
-        # If text is a single line without new lines
         if style:
             doc.add_paragraph(text, style=style)
         else:
