@@ -183,35 +183,38 @@ async def add_heading_and_text(doc, heading, text, style=None):
             if not line:
                 continue  # Skip empty lines
 
-            segments = line.split('**')  # Split for bold text
             paragraph = doc.add_paragraph()  # Create a new paragraph
 
-            if len(line) > 0 and line[0].isdigit() and ('.' in line[:3] or ')' in line[:3]):  # Check for numbered list
+            # Handle bold text using regex for better accuracy
+            bold_segments = re.split(r'(\*\*.+?\*\*)', line)  # Capture bold text
+            for i, segment in enumerate(bold_segments):
+                run = paragraph.add_run(segment.replace('**', ''))  # Remove asterisks
+                if segment.startswith('**') and segment.endswith('**'):
+                    run.bold = True  # Apply bold formatting
+
+            # Check if it's a numbered list item (e.g., "1. Text" or "1) Text")
+            if re.match(r'^\d+[\.\)]\s+', line):
                 numbered = True
                 last_numbered_paragraph = paragraph
-                number_text = line.split(maxsplit=1)  # Separate number from text
-                paragraph.add_run(number_text[0] + ' ').bold = True  # Bold the number
-                if len(number_text) > 1:
-                    paragraph.add_run(number_text[1])
+                number_text, rest_of_text = line.split(maxsplit=1)
+                paragraph.clear()  # Remove previous content
+                paragraph.add_run(number_text + ' ').bold = True  # Bold the number
+                paragraph.add_run(rest_of_text)
                 paragraph.paragraph_format.left_indent = Inches(0.50)
-            elif len(line) > 0 and (line.startswith('•') or line.startswith('-')):  # Check for bullet point
+
+            # Handle bullet points without adding an extra line
+            elif line.startswith(('•', '-')):
                 bullet_text = line.lstrip('• -')
-                bullet_paragraph = doc.add_paragraph()
+                bullet_paragraph = last_numbered_paragraph if numbered else doc.add_paragraph()
                 bullet_paragraph.add_run(bullet_text)
                 bullet_paragraph.style = 'List Bullet'
-                bullet_paragraph.paragraph_format.left_indent = Inches(1.0 if numbered else 0.50)  # Indent appropriately
+                bullet_paragraph.paragraph_format.left_indent = Inches(1.0 if numbered else 0.50)  # Adjust indent
+
             else:  # Regular text
                 numbered = False  # Reset numbered flag if normal text appears
-                for i, segment in enumerate(segments):
-                    run = paragraph.add_run(segment)
-                    if i % 2 == 1:
-                        run.bold = True  # Bold text
 
     elif text:
-        if style:
-            doc.add_paragraph(text, style=style)
-        else:
-            doc.add_paragraph(text)
+        doc.add_paragraph(text, style=style if style else None)
 
 async def create_summary_doc(existing_doc_bytes, all_data):
     # Decode the base64 document
