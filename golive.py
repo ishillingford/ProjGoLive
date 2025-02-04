@@ -171,39 +171,42 @@ async def stream_processor(response):
 
 async def add_heading_and_text(doc, heading, text, style=None):
     # Add the section heading
-    doc.add_heading(heading, level=2) 
-    
-    # Check if text is a non-empty string
-    if isinstance(text, str) and text.strip(): # Check if text is non-empty
-        paragraphs = text.split('\n') # Split by new line 
-        numbered = False  # Flag to track if inside a numbered list 
-        last_numbered_paragraph = None
-        for line in paragraphs:
-            line = line.strip() # Remove whitespace
-            if line: # Only proceed if the line is not empty
-                # Check for bold text within ** **
-                segments = line.split('**')
-                paragraph = doc.add_paragraph() # Create a new paragraph
+    doc.add_heading(heading, level=2)
 
-            if line[0].isdigit() and ('.' in line[:3] or ')' in line[:3]):  # Check for numbered list
+    if isinstance(text, str) and text.strip():  # Check if text is non-empty
+        paragraphs = text.split('\n')  # Split by new line
+        numbered = False  # Flag to track if inside a numbered list
+        last_numbered_paragraph = None
+
+        for line in paragraphs:
+            line = line.strip()  # Remove whitespace
+            if not line:
+                continue  # Skip empty lines
+
+            segments = line.split('**')  # Split for bold text
+            paragraph = doc.add_paragraph()  # Create a new paragraph
+
+            if len(line) > 0 and line[0].isdigit() and ('.' in line[:3] or ')' in line[:3]):  # Check for numbered list
                 numbered = True
                 last_numbered_paragraph = paragraph
                 number_text = line.split(maxsplit=1)  # Separate number from text
                 paragraph.add_run(number_text[0] + ' ').bold = True  # Bold the number
-                paragraph.add_run(number_text[1]) if len(number_text) > 1 else None
+                if len(number_text) > 1:
+                    paragraph.add_run(number_text[1])
                 paragraph.paragraph_format.left_indent = Inches(0.50)
-            elif line.startswith('•') or line.startswith('-'):  # Check for bullet point
+            elif len(line) > 0 and (line.startswith('•') or line.startswith('-')):  # Check for bullet point
                 bullet_text = line.lstrip('• -')
-                bullet_paragraph = doc.add_paragraph(bullet_text)
+                bullet_paragraph = doc.add_paragraph()
+                bullet_paragraph.add_run(bullet_text)
                 bullet_paragraph.style = 'List Bullet'
                 bullet_paragraph.paragraph_format.left_indent = Inches(1.0 if numbered else 0.50)  # Indent appropriately
             else:  # Regular text
                 numbered = False  # Reset numbered flag if normal text appears
                 for i, segment in enumerate(segments):
+                    run = paragraph.add_run(segment)
                     if i % 2 == 1:
-                        paragraph.add_run(segment).bold = True  # Bold text
-                    else:
-                        paragraph.add_run(segment)
+                        run.bold = True  # Bold text
+
     elif text:
         if style:
             doc.add_paragraph(text, style=style)
