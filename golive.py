@@ -171,20 +171,19 @@ async def stream_processor(response):
 
 async def add_heading_and_text(doc, heading, text, style=None):
     # Add the section heading
-    doc.add_heading(heading, level=2)
-
-    if isinstance(text, str) and text.strip():  # Check if text is non-empty
-        paragraphs = text.split('\n')  # Split by new line
-        numbered = False  # Flag to track if inside a numbered list
+    doc.add_heading(heading, level=2) 
+    
+    # Check if text is a non-empty string
+    if isinstance(text, str) and text.strip(): # Check if text is non-empty
+        paragraphs = text.split('\n') # Split by new line 
+        numbered = False  # Flag to track if inside a numbered list 
         last_numbered_paragraph = None
-
         for line in paragraphs:
-            line = line.strip()  # Remove whitespace
-            if not line:
-                continue  # Skip empty lines
-
-            segments = line.split('**')  # Split for bold text
-            paragraph = doc.add_paragraph()  # Create a new paragraph
+            line = line.strip() # Remove whitespace
+            if line: # Only proceed if the line is not empty
+                # Check for bold text within ** **
+                segments = line.split('**')
+                paragraph = doc.add_paragraph() # Create a new paragraph
 
             if line[0].isdigit() and ('.' in line[:3] or ')' in line[:3]):  # Check for numbered list
                 numbered = True
@@ -205,7 +204,6 @@ async def add_heading_and_text(doc, heading, text, style=None):
                         paragraph.add_run(segment).bold = True  # Bold text
                     else:
                         paragraph.add_run(segment)
-
     elif text:
         if style:
             doc.add_paragraph(text, style=style)
