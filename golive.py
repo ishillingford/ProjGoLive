@@ -193,15 +193,15 @@ async def add_heading_and_text(doc, heading, text, style=None):
                 paragraph.add_run(number_text[0] + ' ').bold = True  # Bold the number
                 if len(number_text) > 1:
                     for i, segment in enumerate(number_text[1].split('**')):
-                        run = paragraph.add_run(segment.strip())
+                        run = paragraph.add_run((' ' if i % 2 == 1 else '') + segment.strip() + (' ' if i % 2 == 1 else ''))
                         if i % 2 == 1:
                             run.bold = True  # Bold text
                 paragraph.paragraph_format.left_indent = Inches(0.50)
             elif len(line) > 0 and (line.startswith('•') or line.startswith('-')):  # Check for bullet point
                 bullet_text = line.lstrip('• -').strip()
-                bullet_paragraph = doc.add_paragraph()
+                bullet_paragraph = last_numbered_paragraph if numbered else doc.add_paragraph()
                 for i, segment in enumerate(bullet_text.split('**')):
-                    run = bullet_paragraph.add_run(segment.strip())
+                    run = bullet_paragraph.add_run((' ' if i % 2 == 1 else '') + segment.strip() + (' ' if i % 2 == 1 else ''))
                     if i % 2 == 1:
                         run.bold = True  # Bold text
                 bullet_paragraph.style = 'List Bullet'
@@ -209,7 +209,7 @@ async def add_heading_and_text(doc, heading, text, style=None):
             else:  # Regular text
                 numbered = False  # Reset numbered flag if normal text appears
                 for i, segment in enumerate(segments):
-                    run = paragraph.add_run(segment.strip())  # Strip spaces around bold segments
+                    run = paragraph.add_run((' ' if i % 2 == 1 else '') + segment.strip() + (' ' if i % 2 == 1 else ''))  # Add spaces around bold text
                     if i % 2 == 1:
                         run.bold = True  # Bold text
     
@@ -218,7 +218,6 @@ async def add_heading_and_text(doc, heading, text, style=None):
             doc.add_paragraph(text, style=style)
         else:
             doc.add_paragraph(text)
-
 async def create_summary_doc(existing_doc_bytes, all_data):
     # Decode the base64 document
     doc_content = base64.b64decode(existing_doc_bytes)
