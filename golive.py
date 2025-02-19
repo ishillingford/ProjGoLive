@@ -65,100 +65,7 @@ def sync_extract_msg(file_path):
     body = re.sub(r'\s+', ' ', body).strip()  # Normalize whitespace
     return email_date, body
 
-async def extract_info_from_msg(file_path):
-    """Extracts structured information from the .msg file."""
-    # Offload blocking task to thread pool
-    loop = asyncio.get_event_loop()
-    with concurrent.futures.ThreadPoolExecutor() as pool:
-        email_date, body = await loop.run_in_executor(pool, sync_extract_msg, file_path)
 
-    # Prompts for information extraction
-    prompts = {
-        "Project Title": "Provide the project title only (e.g., Real Estate Fund Portfolio Management):",         
-        "Client Name": "Provide the client name (not Lionpoint) only (e.g., Bain Capital LP):",         
-        "Use Case": "Provide the specific use cases only (e.g., Real Estate Fund Forecasting, Waterfall, Asset Management, Workforce Planning):",         
-        "Completion Date": "Provide the completion date (Month and Year only, e.g., December 2021):",
-        "Project Objectives": "Extract the main objectives of the project:",
-        "Business Challenges": "Extract the key business challenges faced by the client:",
-        "Our Approach": "Extract the approach taken during the project:",
-        "Value Created": "Extract the value created or outcomes achieved from the project:",
-        "Measures of Success": "Extract the measures of success for the project:",
-        "Industry": "Extract the industry related to the project:"
-    }
-
-    # Collect results using async tasks
-    tasks = [fetch_info(key, prompt, body) for key, prompt in prompts.items()]
-    results = await asyncio.gather(*tasks)
-
-    # Build the result dictionary
-    info = {key: result for key, result in results}
-
-    # Handle completion date fallback
-    if info["Completion Date"] == "Not Provided" or not re.search(
-        r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b',
-        info["Completion Date"],
-        re.IGNORECASE
-    ):
-        if email_date:
-            info["Completion Date"] = email_date.strftime("%B %Y")
-
-    return info
-
-async def fetch_info(key, prompt, body):
-    """Fetches specific information using Azure OpenAI."""
-    payload = {
-        "messages": [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"{prompt}\n\n{body}"}
-        ]
-    }
-
-    try:
-        async with semaphore:
-            response = await client.chat.completions.create(
-                model = model_name,
-                messages=payload["messages"]
-            )
-            return key, response.choices[0].message.content.strip()
-    except Exception as e:
-        return key, f"Error: {str(e)}"
-
-# Summarize extracted information
-async def summarize_info(info):
-    """Summarizes key information fields."""
-    summary_prompts = {
-        key: f"Summarize {key.lower()} briefly:" for key in [
-            "Project Objectives", "Business Challenges", "Our Approach", "Value Created", "Measures of Success"
-        ]
-    }
-
-    tasks = [fetch_summary(key, prompt, info[key]) for key, prompt in summary_prompts.items()]
-    results = await asyncio.gather(*tasks)
-
-    summarized_info = info.copy()
-    for key, result in results:
-        summarized_info[key] = result
-
-    return summarized_info
-
-async def fetch_summary(key, prompt, content):
-    """Fetches summarized content using Azure OpenAI."""
-    payload = {
-        "messages": [
-            {"role": "system", "content": "Extract relevant information from the provided email and organize it into structured data to populate a word document template. The system will analyze the email content to identify key details, such as names, dates, or other specified information, and structure the output in a pre-determined format designed for seamless integration into a word document template."},
-            {"role": "user", "content": f"{prompt}\n\n{content}"}
-        ]
-    }
-
-    try:
-        async with semaphore:
-            response = await client.chat.completions.create(
-                model = model_name,
-                messages=payload["messages"]
-            )
-            return key, response.choices[0].message.content.strip()
-    except Exception as e:
-        return key, f"Error: {str(e)}"
 
 # Generate Stream
 async def stream_processor(response):
@@ -168,6 +75,99 @@ async def stream_processor(response):
             if delta.content:
                 yield delta.content 
                 
+async def fetch_all_info(body):
+    """Fetches all required information and summaries in a single prompt using Azure OpenAI."""
+    # Single prompt to extract all information and summarize specific fields
+    prompt = """
+    Extract the following information from the email body and return it in JSON format with the keys specified below:
+    - Project Title: Provide the project title only (e.g., Real Estate Fund Portfolio Management).
+    - Client Name: Provide the client name (not Lionpoint) only (e.g., Bain Capital LP).
+    - Use Case: Provide the specific use cases only (e.g., Real Estate Fund Forecasting, Waterfall, Asset Management, Workforce Planning).
+    - Completion Date: Provide the completion date (Month and Year only, e.g., December 2021).
+    - Project Objectives: Extract the main objectives of the project.
+    - Business Challenges: Extract the key business challenges faced by the client.
+    - Our Approach: Extract the approach taken during the project.
+    - Value Created: Extract the value created or outcomes achieved from the project.
+    - Measures of Success: Extract the measures of success for the project.
+    - Industry: Extract the industry related to the project.
+
+    Additionally, provide a brief summary for the following fields to use for excel database:
+    - Project Objectives: Summarize the main objectives briefly listing keywords.
+    - Business Challenges: Summarize the key business challenges briefly listing keyword.
+    - Our Approach: Summarize the approach taken during the project briefly listing key words.
+    - Value Created: Summarize the value created or outcomes achieved briefly listing keywords.
+    - Measures of Success: Summarize the measures of success briefly listing keywords. 
+    - Internal Resources: List the employees who worked on this project.
+
+    Return the response in the following JSON format:
+    {
+        "extracted_info": {
+            "Project Title": "<project_title>",
+            "Client Name": "<client_name>",
+            "Use Case": "<use_case>",
+            "Completion Date": "<completion_date>",
+            "Project Objectives": "<project_objectives>",
+            "Business Challenges": "<business_challenges>",
+            "Our Approach": "<our_approach>",
+            "Value Created": "<value_created>",
+            "Measures of Success": "<measures_of_success>",
+            "Industry": "<industry>"
+        },
+        "summarized_info": {
+            "Project Objectives": "<summary_of_project_objectives>",
+            "Business Challenges": "<summary_of_business_challenges>",
+            "Our Approach": "<summary_of_our_approach>",
+            "Value Created": "<summary_of_value_created>",
+            "Measures of Success": "<summary_of_measures_of_success>",
+            "Internal Resources": "<employees>"
+        }
+    }
+    """
+
+    payload = {
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant that extracts structured information from emails and returns it in JSON format."},
+            {"role": "user", "content": f"{prompt}\n\nEmail Body:\n{body}"}
+        ]
+    }
+
+    try:
+        async with semaphore:
+            response = await client.chat.completions.create(
+                model=model_name,
+                messages=payload["messages"],
+                response_format={"type": "json_object"}  # Ensure the response is in JSON format
+            )
+            # Parse the JSON response
+            return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+async def process_email_content(file_path):
+    """Extracts and summarizes information from the .msg file."""
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        email_date, body = await loop.run_in_executor(pool, sync_extract_msg, file_path)
+
+    # Fetch all information and summaries in a single prompt
+    info_json = await fetch_all_info(body)
+
+    # Parse the JSON response
+    try:
+        info = json.loads(info_json)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Failed to parse the response from OpenAI.")
+
+    # Handle completion date fallback
+    if info["extracted_info"]["Completion Date"] == "Not Provided" or not re.search(
+        r'\b(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{4}\b',
+        info["extracted_info"]["Completion Date"],
+        re.IGNORECASE
+    ):
+        if email_date:
+            info["extracted_info"]["Completion Date"] = email_date.strftime("%B %Y")
+
+    return info
 
 async def add_heading_and_text(doc, heading, text, style=None):
     # Add the section heading
@@ -280,14 +280,11 @@ async def process_email(request: EmailRequest):
         decoded_content = base64.b64decode(base64_content)
         email_stream = BytesIO(decoded_content)
 
-        # Extract and summarize information
-        extracted_info = await extract_info_from_msg(email_stream)
-        summarized_info = await summarize_info(extracted_info)
+        # Process the email content
+        result = await process_email_content(email_stream)
 
-        return {
-            "extracted_info": extracted_info,
-            "summarized_info": summarized_info
-        }
+
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -326,3 +323,4 @@ async def excel_documentation(request: ExcelRequest):
         return {"excel": base64.b64encode(modified_excel_bytes.getvalue()).decode('utf-8')}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
