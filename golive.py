@@ -94,8 +94,6 @@ async def fetch_all_info(body):
     Additionally, provide a brief summary for the following fields to use for excel database:
     - Project Objectives: Summarize the main objectives briefly listing keywords.
     - Business Challenges: Summarize the key business challenges briefly listing keyword.
-    - Our Approach: Summarize the approach taken during the project briefly listing key words.
-    - Value Created: Summarize the value created or outcomes achieved briefly listing keywords.
     - Measures of Success: Summarize the measures of success briefly listing keywords. 
     - Internal Resources: List the employees who worked on this project.
 
@@ -113,13 +111,15 @@ async def fetch_all_info(body):
             "Measures of Success": "<measures_of_success>",
             "Industry": "<industry>"
         },
-        "summarized_info": {
-            "Project Objectives": "<summary_of_project_objectives>",
+        "summarized_info": { 
+            "Project Title": "<project_title>", 
+            "Industry": "<industry>"
+            "Client Name": "<client_name>",
+            "Internal Resources": "<employees>",  
+            "Completion Date": "<completion_date>",
+            "Project Objectives": "<summary_of_project_objectives>", 
             "Business Challenges": "<summary_of_business_challenges>",
-            "Our Approach": "<summary_of_our_approach>",
-            "Value Created": "<summary_of_value_created>",
-            "Measures of Success": "<summary_of_measures_of_success>",
-            "Internal Resources": "<employees>"
+            "Measures of Success": "<summary_of_measures_of_success>"
         }
     }
     """
