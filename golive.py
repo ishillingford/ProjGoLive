@@ -92,9 +92,9 @@ async def fetch_all_info(body):
     - Industry: Extract the industry related to the project.
 
     Additionally, provide a brief summary for the following fields to use for excel database:
-    - Project Objectives: Summarize the main objectives briefly listing keywords.
-    - Business Challenges: Summarize the key business challenges briefly listing keyword.
-    - Measures of Success: Summarize the measures of success briefly listing keywords. 
+    - Project Objectives Summary: Summarize the main objectives briefly listing keywords.
+    - Business Challenges Summary: Summarize the key business challenges briefly listing keyword.
+    - Measures of Success Summary: Summarize the measures of success briefly listing keywords. 
     - Internal Resources: List the employees who worked on this project.
 
     Return the response in the following JSON format:
@@ -117,9 +117,9 @@ async def fetch_all_info(body):
             "Client Name": "<client_name>",
             "Internal Resources": "<employees>",  
             "Completion Date": "<completion_date>",
-            "Project Objectives": "<summary_of_project_objectives>", 
-            "Business Challenges": "<summary_of_business_challenges>",
-            "Measures of Success": "<summary_of_measures_of_success>"
+            "Project Objectives Summary": "<summary_of_project_objectives>", 
+            "Business Challenges Summary": "<summary_of_business_challenges>",
+            "Measures of Success Summary": "<summary_of_measures_of_success>"
         }
     }
     """
